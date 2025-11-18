@@ -80,7 +80,7 @@ export const MessageAction = ({
   children,
   label,
   variant = "ghost",
-  size = "icon-sm",
+  size = "sm",
   ...props
 }: MessageActionProps) => {
   const button = (
