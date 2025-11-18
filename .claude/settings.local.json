@@ -1,14 +1,21 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git push:*)",
+      "Bash(vercel --prod)",
+      "Bash(vercel:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(bun run build:*)"
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "shadcn",
     "nuxt-ui",
     "Better Auth",
     "supabase"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(curl:*)"
-    ]
-  }
+  ]
 }
