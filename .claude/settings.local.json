@@ -9,7 +9,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(bun run build:*)",
-      "Bash(bun add:*)"
+      "Bash(bun add:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ai-elements.vercel.sh)"
     ]
   },
   "enableAllProjectMcpServers": true,
