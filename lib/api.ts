@@ -54,7 +54,7 @@ interface EdgeMetadataResponse {
   cache_age?: number;
 }
 
-const EDGE_API_URL = 'https://youtube-ai-platform-edge-worker.automatehub.workers.dev';
+const EDGE_API_URL = process.env.NEXT_PUBLIC_EDGE_API_URL || 'https://youtube-ai-platform-edge-worker.automatehub.workers.dev';
 const STORAGE_KEY = 'youtube-transcripts';
 
 export class YouTubeTranscriptAPI {
