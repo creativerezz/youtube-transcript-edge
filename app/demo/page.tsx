@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Message, MessageContent, MessageActions, MessageAction, MessageResponse, MessageAttachment, MessageAttachments } from "@/components/ai-elements/message";
-import { PromptInput, PromptInputProvider, PromptInputTextarea, PromptInputButton, PromptInputSubmit, PromptInputAttachments, PromptInputSpeechButton } from "@/components/ai-elements/prompt-input";
+import { PromptInput, PromptInputProvider, PromptInputTextarea, PromptInputButton, PromptInputSubmit, PromptInputAttachments, PromptInputAttachment, PromptInputSpeechButton } from "@/components/ai-elements/prompt-input";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtStep, ChainOfThoughtContent, ChainOfThoughtSearchResults, ChainOfThoughtSearchResult } from "@/components/ai-elements/chain-of-thought";
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
@@ -176,6 +176,7 @@ export default function DemoPage() {
                 <MessageAttachments>
                   <MessageAttachment
                     data={{
+                      type: "file",
                       filename: "research-paper.pdf",
                       mediaType: "application/pdf",
                       url: "",
@@ -183,6 +184,7 @@ export default function DemoPage() {
                   />
                   <MessageAttachment
                     data={{
+                      type: "file",
                       filename: "diagram.png",
                       mediaType: "image/png",
                       url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -241,10 +243,14 @@ export default function DemoPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Standard Input with Provider</h3>
-              <PromptInputProvider value={promptValue} onValueChange={setPromptValue}>
-                <PromptInput>
+              <PromptInputProvider initialInput={promptValue}>
+                <PromptInput onSubmit={(message) => console.log("Submitted:", message)}>
                   <PromptInputTextarea placeholder="Ask me anything..." />
-                  <PromptInputAttachments />
+                  <PromptInputAttachments>
+                    {(attachment) => (
+                      <PromptInputAttachment key={attachment.id} data={attachment} />
+                    )}
+                  </PromptInputAttachments>
                   <div className="flex items-center gap-2 justify-end">
                     <PromptInputSpeechButton />
                     <PromptInputSubmit>Send</PromptInputSubmit>
@@ -286,7 +292,7 @@ export default function DemoPage() {
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Reasoning</h3>
               <Reasoning>
-                <ReasoningTrigger duration={2340} />
+                <ReasoningTrigger />
                 <ReasoningContent>
                   {`I need to approach this problem systematically:
 
@@ -302,12 +308,12 @@ export default function DemoPage() {
               <h3 className="text-lg font-medium">Chain of Thought</h3>
               <ChainOfThought>
                 <ChainOfThoughtHeader>Problem Solving Process</ChainOfThoughtHeader>
-                <ChainOfThoughtStep status="complete" title="Analyze requirements">
+                <ChainOfThoughtStep status="complete" label="Analyze requirements">
                   <ChainOfThoughtContent>
                     Identified 5 key requirements and 3 constraints
                   </ChainOfThoughtContent>
                 </ChainOfThoughtStep>
-                <ChainOfThoughtStep status="active" title="Research solutions">
+                <ChainOfThoughtStep status="active" label="Research solutions">
                   <ChainOfThoughtContent>
                     Searching documentation and examples...
                     <ChainOfThoughtSearchResults>
@@ -316,7 +322,7 @@ export default function DemoPage() {
                     </ChainOfThoughtSearchResults>
                   </ChainOfThoughtContent>
                 </ChainOfThoughtStep>
-                <ChainOfThoughtStep status="pending" title="Implement solution" />
+                <ChainOfThoughtStep status="pending" label="Implement solution" />
               </ChainOfThought>
             </div>
           </div>
@@ -343,7 +349,7 @@ export default function DemoPage() {
                 <ToolHeader type="tool-call-calculate" state="output-available" title="calculate" />
                 <ToolContent>
                   <ToolInput input={{ expression: "2 + 2 * 5" }} />
-                  <ToolOutput output={{ result: 12, steps: ["2 + (2 * 5)", "2 + 10", "12"] }} />
+                  <ToolOutput output={{ result: 12, steps: ["2 + (2 * 5)", "2 + 10", "12"] }} errorText={undefined} />
                 </ToolContent>
               </Tool>
             </div>
@@ -357,7 +363,7 @@ export default function DemoPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Pending Confirmation</h3>
-              <Confirmation>
+              <Confirmation state="input-available">
                 <ConfirmationTitle>Execute system command?</ConfirmationTitle>
                 <ConfirmationRequest>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -373,7 +379,7 @@ export default function DemoPage() {
 
             <div className="space-y-2">
               <h3 className="text-lg font-medium">Confirmed</h3>
-              <Confirmation>
+              <Confirmation state="output-available">
                 <ConfirmationTitle>Execute system command?</ConfirmationTitle>
                 <ConfirmationAccepted>
                   Request approved by user
@@ -420,11 +426,11 @@ export default function DemoPage() {
               <Queue>
                 <QueueSection defaultOpen>
                   <QueueSectionTrigger>
-                    <QueueSectionLabel count={1}>In Progress</QueueSectionLabel>
+                    <QueueSectionLabel count={1} label="In Progress" />
                   </QueueSectionTrigger>
                   <QueueList>
                     <QueueItem>
-                      <QueueItemIndicator variant="in-progress" />
+                      <QueueItemIndicator />
                       <QueueItemContent>
                         <QueueItemDescription>
                           Building authentication system
@@ -436,11 +442,11 @@ export default function DemoPage() {
 
                 <QueueSection>
                   <QueueSectionTrigger>
-                    <QueueSectionLabel count={2}>Completed</QueueSectionLabel>
+                    <QueueSectionLabel count={2} label="Completed" />
                   </QueueSectionTrigger>
                   <QueueList>
                     <QueueItem>
-                      <QueueItemIndicator variant="completed" />
+                      <QueueItemIndicator completed />
                       <QueueItemContent>
                         <QueueItemDescription>
                           Set up project structure
@@ -448,7 +454,7 @@ export default function DemoPage() {
                       </QueueItemContent>
                     </QueueItem>
                     <QueueItem>
-                      <QueueItemIndicator variant="completed" />
+                      <QueueItemIndicator completed />
                       <QueueItemContent>
                         <QueueItemDescription>
                           Configure TypeScript
@@ -524,21 +530,15 @@ console.log(fibonacci(10)); // Output: 55`}>
               <Sources>
                 <SourcesTrigger count={3} />
                 <SourcesContent>
-                  <Source
-                    name="Next.js Documentation"
-                    url="https://nextjs.org/docs"
-                    description="Official Next.js documentation and guides"
-                  />
-                  <Source
-                    name="React Patterns"
-                    url="https://reactpatterns.com"
-                    description="Common React design patterns"
-                  />
-                  <Source
-                    name="TypeScript Handbook"
-                    url="https://www.typescriptlang.org/docs/handbook"
-                    description="Complete TypeScript language reference"
-                  />
+                  <Source href="https://nextjs.org/docs" title="Next.js Documentation">
+                    Official Next.js documentation and guides
+                  </Source>
+                  <Source href="https://reactpatterns.com" title="React Patterns">
+                    Common React design patterns
+                  </Source>
+                  <Source href="https://www.typescriptlang.org/docs/handbook" title="TypeScript Handbook">
+                    Complete TypeScript language reference
+                  </Source>
                 </SourcesContent>
               </Sources>
             </div>
@@ -549,8 +549,8 @@ console.log(fibonacci(10)); // Output: 55`}>
                 usedTokens={10600}
                 maxTokens={200000}
                 usage={{
-                  promptTokens: 8500,
-                  completionTokens: 2100,
+                  inputTokens: 8500,
+                  outputTokens: 2100,
                   totalTokens: 10600,
                 }}
                 modelId="claude-3-5-sonnet-20241022"
@@ -574,14 +574,14 @@ console.log(fibonacci(10)); // Output: 55`}>
 
           <div className="space-y-2">
             <h3 className="text-lg font-medium">Model Selector</h3>
-            <ModelSelector value={selectedModel} onValueChange={setSelectedModel}>
+            <ModelSelector>
               <ModelSelectorTrigger>
                 <ModelSelectorName>{selectedModel}</ModelSelectorName>
               </ModelSelectorTrigger>
               <ModelSelectorContent>
                 <ModelSelectorInput placeholder="Search models..." />
                 <ModelSelectorList>
-                  <ModelSelectorGroup label="Anthropic">
+                  <ModelSelectorGroup heading="Anthropic">
                     <ModelSelectorItem value="claude-3-5-sonnet">
                       Claude 3.5 Sonnet
                     </ModelSelectorItem>
@@ -589,7 +589,7 @@ console.log(fibonacci(10)); // Output: 55`}>
                       Claude 3 Opus
                     </ModelSelectorItem>
                   </ModelSelectorGroup>
-                  <ModelSelectorGroup label="OpenAI">
+                  <ModelSelectorGroup heading="OpenAI">
                     <ModelSelectorItem value="gpt-4-turbo">
                       GPT-4 Turbo
                     </ModelSelectorItem>

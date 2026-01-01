@@ -53,7 +53,6 @@ export function TranscriptFetcher({ onTranscriptFetched }: TranscriptFetcherProp
     try {
       const response = await api.fetchTranscript({
         video: videoUrl,
-        languages: ["en"],
         force,
       })
 
@@ -63,8 +62,8 @@ export function TranscriptFetcher({ onTranscriptFetched }: TranscriptFetcherProp
       toast({
         title: response.cached ? "Retrieved from cache" : "Transcript fetched",
         description: response.cached
-          ? "Loaded instantly"
-          : "Successfully stored",
+          ? `Loaded from ${response.cache_layer || 'cache'} (${response.data.word_count} words)`
+          : `Fetched successfully (${response.data.word_count} words)`,
       })
     } catch (error) {
       toast({

@@ -44,17 +44,22 @@ export default function TranscriptPage() {
   const downloadTranscript = () => {
     if (!transcript) return
 
-    const content = `Title: ${transcript.title}
+    let content = `Title: ${transcript.title}
 Author: ${transcript.author_name}
 Video ID: ${transcript.video_id}
-Created: ${new Date(transcript.created_at).toLocaleString()}
+${transcript.word_count ? `Words: ${transcript.word_count}` : ''}
+${transcript.language ? `Language: ${transcript.language.toUpperCase()}` : ''}
 
-=== CAPTIONS ===
+=== TRANSCRIPT ===
 ${transcript.captions}
+`
 
+    if (transcript.timestamps && transcript.timestamps.length > 0) {
+      content += `
 === TIMESTAMPS ===
 ${transcript.timestamps.join('\n')}
 `
+    }
 
     const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
@@ -200,12 +205,11 @@ ${transcript.timestamps.join('\n')}
                 <CardDescription className="space-y-1">
                   <span className="block text-base text-muted-foreground font-medium">{transcript.author_name}</span>
                   <span className="block text-sm text-muted-foreground">Video ID: {transcript.video_id}</span>
-                  <span className="block text-sm text-muted-foreground">
-                    Created: {new Date(transcript.created_at).toLocaleString()}
-                  </span>
-                  <span className="block text-sm text-muted-foreground">
-                    Updated: {new Date(transcript.updated_at).toLocaleString()}
-                  </span>
+                  {transcript.word_count && (
+                    <span className="block text-sm text-muted-foreground">
+                      {transcript.word_count} words • {transcript.language?.toUpperCase() || 'EN'}
+                    </span>
+                  )}
                 </CardDescription>
                 <div className="flex gap-2 mt-4">
                   <a href={youtubeUrl} target="_blank" rel="noopener noreferrer">
@@ -229,15 +233,21 @@ ${transcript.timestamps.join('\n')}
           <CardHeader className="bg-gradient-to-r from-accent/5 to-primary/5">
             <CardTitle className="text-foreground">Transcript</CardTitle>
             <CardDescription>
-              Full transcript with captions and timestamps
+              Full video transcript{transcript.timestamps?.length ? ' with timestamps' : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="captions">
-              <TabsList className="grid w-full max-w-md grid-cols-2 bg-muted/40 border border-border/40">
-                <TabsTrigger value="captions">Captions</TabsTrigger>
-                <TabsTrigger value="timestamps">Timestamps</TabsTrigger>
-              </TabsList>
+              {transcript.timestamps && transcript.timestamps.length > 0 ? (
+                <TabsList className="grid w-full max-w-md grid-cols-2 bg-muted/40 border border-border/40">
+                  <TabsTrigger value="captions">Captions</TabsTrigger>
+                  <TabsTrigger value="timestamps">Timestamps</TabsTrigger>
+                </TabsList>
+              ) : (
+                <TabsList className="w-fit bg-muted/40 border border-border/40">
+                  <TabsTrigger value="captions">Transcript</TabsTrigger>
+                </TabsList>
+              )}
 
               <TabsContent value="captions" className="space-y-4">
                 <div className="flex justify-end">
@@ -271,44 +281,46 @@ ${transcript.timestamps.join('\n')}
                 </div>
               </TabsContent>
 
-              <TabsContent value="timestamps" className="space-y-4">
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(transcript.timestamps.join('\n'))}
-                    className="border-border/60 hover:bg-primary/10 text-primary"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <div className="bg-muted/30 p-6 rounded-lg border border-border/40 space-y-1 max-h-[600px] overflow-y-auto">
-                  {parseTimestamps(transcript.timestamps).map((entry, index) => (
-                    <div
-                      key={index}
-                      onClick={() => jumpToTimestamp(entry.seconds)}
-                      className="flex items-start gap-3 py-2 px-3 hover:bg-primary/10 rounded cursor-pointer transition-colors group"
+              {transcript.timestamps && transcript.timestamps.length > 0 && (
+                <TabsContent value="timestamps" className="space-y-4">
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(transcript.timestamps.join('\n'))}
+                      className="border-border/60 hover:bg-primary/10 text-primary"
                     >
-                      <span className="text-xs font-mono text-primary font-semibold min-w-[65px] mt-0.5 group-hover:text-primary/80">
-                        {entry.time}
-                      </span>
-                      <span className="text-sm text-foreground/90 leading-relaxed flex-1">
-                        {entry.text}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="bg-muted/30 p-6 rounded-lg border border-border/40 space-y-1 max-h-[600px] overflow-y-auto">
+                    {parseTimestamps(transcript.timestamps).map((entry, index) => (
+                      <div
+                        key={index}
+                        onClick={() => jumpToTimestamp(entry.seconds)}
+                        className="flex items-start gap-3 py-2 px-3 hover:bg-primary/10 rounded cursor-pointer transition-colors group"
+                      >
+                        <span className="text-xs font-mono text-primary font-semibold min-w-[65px] mt-0.5 group-hover:text-primary/80">
+                          {entry.time}
+                        </span>
+                        <span className="text-sm text-foreground/90 leading-relaxed flex-1">
+                          {entry.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              )}
             </Tabs>
           </CardContent>
         </Card>
