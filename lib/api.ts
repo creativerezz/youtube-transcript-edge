@@ -32,9 +32,13 @@ export interface APIError {
   error: string;
 }
 
-// Edge API response types
-interface EdgeCaptionsResponse {
+// Proxy API response type (combined captions + metadata)
+interface ProxyResponse {
   video_id: string;
+  title: string;
+  author_name: string;
+  author_url: string;
+  thumbnail_url: string;
   captions: string;
   language: string;
   word_count: number;
@@ -43,27 +47,9 @@ interface EdgeCaptionsResponse {
   cache_age?: number;
 }
 
-interface EdgeMetadataResponse {
-  video_id: string;
-  title: string;
-  author_name: string;
-  author_url: string;
-  thumbnail_url: string;
-  cached: boolean;
-  cache_layer: string;
-  cache_age?: number;
-}
-
-const EDGE_API_URL = process.env.NEXT_PUBLIC_EDGE_API_URL || 'https://youtube-ai-platform-edge-worker.automatehub.workers.dev';
 const STORAGE_KEY = 'youtube-transcripts';
 
 export class YouTubeTranscriptAPI {
-  private baseURL: string;
-
-  constructor(baseURL = EDGE_API_URL) {
-    this.baseURL = baseURL;
-  }
-
   /**
    * Get stored transcripts from localStorage
    */
@@ -102,7 +88,7 @@ export class YouTubeTranscriptAPI {
   }
 
   /**
-   * Fetch a YouTube transcript using the Edge API
+   * Fetch a YouTube transcript using the proxy API
    */
   async fetchTranscript(request: { video: string; force?: boolean }): Promise<FetchTranscriptResponse> {
     const videoId = extractVideoId(request.video);
@@ -112,29 +98,20 @@ export class YouTubeTranscriptAPI {
 
     // Clear cache if force refetch
     if (request.force) {
-      await fetch(`${this.baseURL}/youtube/cache/clear?video=${videoId}`, {
+      await fetch(`/api/transcript?video=${videoId}`, {
         method: 'DELETE',
       });
     }
 
-    // Fetch captions and metadata in parallel
-    const [captionsRes, metadataRes] = await Promise.all([
-      fetch(`${this.baseURL}/youtube/captions?video=${videoId}`),
-      fetch(`${this.baseURL}/youtube/metadata?video=${videoId}`),
-    ]);
+    // Fetch from proxy API (handles CORS)
+    const res = await fetch(`/api/transcript?video=${videoId}`);
 
-    if (!captionsRes.ok) {
-      const error = await captionsRes.json() as APIError;
-      throw new Error(error.error || `Failed to fetch captions: ${captionsRes.status}`);
+    if (!res.ok) {
+      const error = await res.json() as APIError;
+      throw new Error(error.error || `Failed to fetch transcript: ${res.status}`);
     }
 
-    if (!metadataRes.ok) {
-      const error = await metadataRes.json() as APIError;
-      throw new Error(error.error || `Failed to fetch metadata: ${metadataRes.status}`);
-    }
-
-    const captions = await captionsRes.json() as EdgeCaptionsResponse;
-    const metadata = await metadataRes.json() as EdgeMetadataResponse;
+    const data = await res.json() as ProxyResponse;
 
     // Generate ID based on existing transcripts
     const stored = this.getStoredTranscripts();
@@ -145,14 +122,14 @@ export class YouTubeTranscriptAPI {
     const transcript: VideoTranscript = {
       id,
       video_id: videoId,
-      title: metadata.title,
-      author_name: metadata.author_name,
-      author_url: metadata.author_url,
-      thumbnail_url: metadata.thumbnail_url,
-      captions: captions.captions,
+      title: data.title,
+      author_name: data.author_name,
+      author_url: data.author_url,
+      thumbnail_url: data.thumbnail_url,
+      captions: data.captions,
       timestamps: [], // Edge API doesn't provide timestamps
-      language: captions.language,
-      word_count: captions.word_count,
+      language: data.language,
+      word_count: data.word_count,
       created_at: existingTranscript?.created_at ?? now,
       updated_at: now,
     };
@@ -161,44 +138,40 @@ export class YouTubeTranscriptAPI {
     this.storeTranscript(transcript);
 
     return {
-      message: captions.cached ? 'Retrieved from cache' : 'Transcript fetched',
+      message: data.cached ? 'Retrieved from cache' : 'Transcript fetched',
       data: transcript,
-      cached: captions.cached,
-      cache_layer: captions.cache_layer,
+      cached: data.cached,
+      cache_layer: data.cache_layer,
     };
   }
 
   /**
-   * Get a transcript by video ID (from Edge API or local storage)
+   * Get a transcript by video ID (from proxy API or local storage)
    */
   async getTranscript(videoId: string): Promise<VideoTranscript> {
     // First check local storage
     const stored = this.getStoredTranscripts();
     const localTranscript = stored.find(t => t.video_id === videoId);
 
-    // Fetch fresh from Edge API
+    // Fetch fresh from proxy API
     try {
-      const [captionsRes, metadataRes] = await Promise.all([
-        fetch(`${this.baseURL}/youtube/captions?video=${videoId}`),
-        fetch(`${this.baseURL}/youtube/metadata?video=${videoId}`),
-      ]);
+      const res = await fetch(`/api/transcript?video=${videoId}`);
 
-      if (captionsRes.ok && metadataRes.ok) {
-        const captions = await captionsRes.json() as EdgeCaptionsResponse;
-        const metadata = await metadataRes.json() as EdgeMetadataResponse;
+      if (res.ok) {
+        const data = await res.json() as ProxyResponse;
 
         const now = new Date().toISOString();
         const transcript: VideoTranscript = {
           id: localTranscript?.id ?? stored.length + 1,
           video_id: videoId,
-          title: metadata.title,
-          author_name: metadata.author_name,
-          author_url: metadata.author_url,
-          thumbnail_url: metadata.thumbnail_url,
-          captions: captions.captions,
+          title: data.title,
+          author_name: data.author_name,
+          author_url: data.author_url,
+          thumbnail_url: data.thumbnail_url,
+          captions: data.captions,
           timestamps: [],
-          language: captions.language,
-          word_count: captions.word_count,
+          language: data.language,
+          word_count: data.word_count,
           created_at: localTranscript?.created_at ?? now,
           updated_at: now,
         };
@@ -241,9 +214,9 @@ export class YouTubeTranscriptAPI {
     const filtered = transcripts.filter(t => t.video_id !== videoId);
     this.saveTranscripts(filtered);
 
-    // Clear Edge API cache
+    // Clear Edge API cache via proxy
     try {
-      await fetch(`${this.baseURL}/youtube/cache/clear?video=${videoId}`, {
+      await fetch(`/api/transcript?video=${videoId}`, {
         method: 'DELETE',
       });
     } catch {
